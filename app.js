@@ -1,12 +1,10 @@
 // ═══ Trading Suite — Pure localStorage PWA ═══
 // No GAS URL. All data saved locally on device.
-
 // ═══ DATABASE (localStorage) ═══
 const DB = {
   get(key) { try { return JSON.parse(localStorage.getItem(key)) || []; } catch { return []; } },
   set(key, val) { localStorage.setItem(key, JSON.stringify(val)); },
   uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); },
-
   getAccounts() { return this.get('ts_accounts'); },
   savAccounts(a) { this.set('ts_accounts', a); },
   getTrades() { return this.get('ts_trades'); },
@@ -14,7 +12,6 @@ const DB = {
   getSettings() { try { return JSON.parse(localStorage.getItem('ts_settings')) || {}; } catch { return {}; } },
   savSettings(s) { this.set('ts_settings', s); },
 };
-
 // ═══ API (same interface — backed by localStorage) ═══
 const API = {
   // Accounts
@@ -35,7 +32,6 @@ const API = {
     DB.savTrades(DB.getTrades().filter(t => t.AccountID !== id));
     return Promise.resolve({ success: true });
   },
-
   // Trades
   getTrades(accId, filters = {}) {
     let trades = DB.getTrades().filter(t => t.AccountID === accId);
@@ -60,17 +56,14 @@ const API = {
     DB.savTrades(DB.getTrades().filter(t => t.TradeID !== id));
     return Promise.resolve({ success: true });
   },
-
   // Settings
   getSettings() { return Promise.resolve(DB.getSettings()); },
   updateSettings(d) { DB.savSettings({ ...DB.getSettings(), ...d }); return Promise.resolve({ success: true }); },
-
   // Stats — calculated locally
   getStats(accId) {
     const acc = DB.getAccounts().find(a => a.AccountID === accId) || {};
     const all = DB.getTrades().filter(t => t.AccountID === accId);
     const today = new Date().toISOString().slice(0, 10);
-
     // Summary
     const wins = all.filter(t => t.Result === 'Win');
     const losses = all.filter(t => t.Result === 'Loss');
@@ -82,7 +75,6 @@ const API = {
     const bestTrade = pls.length ? Math.max(...pls) : 0;
     const worstTrade = pls.length ? Math.min(...pls) : 0;
     const pf = totalLoss > 0 ? (totalProfit / totalLoss).toFixed(2) : totalProfit > 0 ? '∞' : '0';
-
     // Drawdown
     let peak = init, maxDD = 0, bal = init;
     all.slice().sort((a, b) => a.Date.localeCompare(b.Date)).forEach(t => {
@@ -91,14 +83,12 @@ const API = {
       const dd = peak - bal;
       if (dd > maxDD) maxDD = dd;
     });
-
     // Daily
     const todayTrades = all.filter(t => t.Date === today);
     const todayProfit = todayTrades.reduce((s, t) => s + (parseFloat(t.ProfitLoss) || 0), 0);
     const todayWins = todayTrades.filter(t => t.Result === 'Win').length;
     const todayLosses = todayTrades.filter(t => t.Result === 'Loss').length;
     const todayLossTotal = Math.abs(todayTrades.filter(t => t.Result === 'Loss').reduce((s, t) => s + (parseFloat(t.ProfitLoss) || 0), 0));
-
     let dailyTarget = parseFloat(acc.DailyTarget) || 0;
     const pct = parseFloat(acc.DailyTargetPct) || 0;
     if (pct > 0) dailyTarget = (init + netProfit - todayProfit) * pct / 100;
@@ -109,7 +99,6 @@ const API = {
     let tradingStatus = 'Trading Berjalan';
     if (lossLimitReached) tradingStatus = '⛔ Loss Limit Tercapai';
     else if (targetReached) tradingStatus = '🎯 Target Tercapai!';
-
     // Charts — equity
     const sorted = all.slice().sort((a, b) => a.Date.localeCompare(b.Date));
     const eqMap = {};
@@ -120,14 +109,12 @@ const API = {
     });
     const eqLabels = Object.keys(eqMap);
     const eqData = Object.values(eqMap);
-
     // Monthly
     const mnMap = {};
     sorted.forEach(t => {
       const key = (t.Date || '').slice(0, 7);
       if (key) mnMap[key] = (mnMap[key] || 0) + (parseFloat(t.ProfitLoss) || 0);
     });
-
     return Promise.resolve({
       summary: {
         winRate: all.length > 0 ? ((wins.length / all.length) * 100).toFixed(1) : 0,
@@ -147,7 +134,6 @@ const API = {
       }
     });
   },
-
   // Exchange rate — free public API, no GAS
   async getLiveRate() {
     try {
@@ -162,7 +148,6 @@ const API = {
       } catch { return { rate: 15800 }; }
     }
   },
-
   calculateLot(p) {
     const { balance, riskMode, risk, sl, currency, rate } = p;
     const r = parseFloat(rate) || 15800;
@@ -173,11 +158,9 @@ const API = {
     return Promise.resolve({ success: true, lot, riskUSD, pipValue: lot * 10 });
   },
 };
-
 // ═══ APP ═══
 const App = {
   state: { currentAccountId: null, currentAccount: null, accounts: [], settings: {} },
-
   fmt(v, cur) {
     const n = parseFloat(v) || 0, abs = Math.abs(n);
     const s = abs % 1 === 0 ? abs.toLocaleString('id-ID') : abs.toLocaleString('id-ID', { maximumFractionDigits: 2 });
@@ -185,29 +168,23 @@ const App = {
     if (cur === 'USD') return (n < 0 ? '-$' : '$') + s;
     return (n < 0 ? '-' : '') + 'Rp ' + s;
   },
-
   fmtDate(str) {
     if (!str) return '';
     return new Date(str + 'T00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
   },
-
   today() { return new Date().toISOString().slice(0, 10); },
-
   toast(msg) {
     const el = document.getElementById('toastMsg');
     el.textContent = msg; el.classList.add('show');
     clearTimeout(App._tt);
     App._tt = setTimeout(() => el.classList.remove('show'), 2800);
   },
-
   openSheet(id) { document.getElementById(id)?.classList.add('open'); },
   closeSheet(id) { document.getElementById(id)?.classList.remove('open'); },
-
   confirmDelete(cb) {
     document.getElementById('confirmDeleteBtn').onclick = async () => { this.closeSheet('deleteSheet'); await cb(); };
     this.openSheet('deleteSheet');
   },
-
   go(page) {
     ['dashboard', 'calculator', 'trades', 'settings'].forEach(p => {
       document.getElementById('page-' + p).classList.toggle('d-none', p !== page);
@@ -218,14 +195,12 @@ const App = {
     if (page === 'calculator') Calculator.render();
     if (page === 'settings') Settings.render();
   },
-
   setAccount(id) {
     this.state.currentAccountId = id;
     this.state.currentAccount = this.state.accounts.find(a => a.AccountID === id) || null;
     const acc = this.state.currentAccount;
     document.getElementById('topbarSub').textContent = acc ? acc.Name + ' · ' + acc.Currency : 'Pilih Akun';
   },
-
   openAccountPicker() {
     document.getElementById('accPickerList').innerHTML = this.state.accounts.map(a => {
       const ic = (a.Icon && typeof a.Icon === 'string') ? a.Icon.trim() : 'bi-wallet2';
@@ -240,14 +215,12 @@ const App = {
     }).join('');
     this.openSheet('accPickerSheet');
   },
-
   selectAccount(id) {
     this.setAccount(id);
     this.closeSheet('accPickerSheet');
     Dashboard.render();
     if (!document.getElementById('page-trades').classList.contains('d-none')) Trades.render();
   },
-
   async init() {
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => { });
     this.state.accounts = DB.getAccounts();
@@ -262,7 +235,6 @@ const App = {
     document.getElementById('loadingScreen').style.display = 'none';
   }
 };
-
 // ═══ DASHBOARD ═══
 const Dashboard = {
   loadChartJS() {
@@ -283,7 +255,6 @@ const Dashboard = {
     const d = new Date(str + 'T00:00'), m = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
     return d.getDate() + ' ' + m[d.getMonth()];
   },
-
   async render() {
     const el = document.getElementById('page-dashboard');
     el.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;padding:40px;gap:12px;color:var(--text3)"><div class="loader-gold"></div><span>Memuat...</span></div>`;
@@ -294,12 +265,10 @@ const Dashboard = {
     const [stats] = await Promise.all([API.getStats(App.state.currentAccountId), this.loadChartJS()]);
     this.build(stats, el);
   },
-
   build(stats, el) {
     const s = stats.summary, d = stats.daily, c = stats.charts;
     const acc = App.state.currentAccount, cur = acc ? acc.Currency : 'IDR';
     const fmt = v => App.fmt(v, cur);
-
     const dailySec = (d.dailyTarget > 0 || d.dailyLossLimit > 0) ? `
       <div class="daily-card ${d.targetReached ? 'target-glow' : ''} ${d.lossLimitReached ? 'loss-glow' : ''}">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
@@ -315,9 +284,7 @@ const Dashboard = {
           <span class="t-loss"><i class="bi bi-x-circle-fill me-1"></i>${d.todayLosses} Loss</span>
         </div>
       </div>`: '';
-
     const hasChart = typeof Chart !== 'undefined';
-
     el.innerHTML = `<div class="fade-up">
       <div class="hero-card">
         <div class="hero-label">Saldo Saat Ini · ${acc ? acc.Name : ''}</div>
@@ -369,7 +336,6 @@ const Dashboard = {
     </div>`;
     if (hasChart) setTimeout(() => this.drawCharts(c), 150);
   },
-
   drawCharts(c) {
     ['eqChart', 'mnChart', 'wlChart'].forEach(id => { const i = Chart.getChart(id); if (i) i.destroy(); });
     const gr = 'rgba(255,255,255,.04)', tk = '#475569';
@@ -383,12 +349,10 @@ const Dashboard = {
     new Chart(document.getElementById('wlChart'), { type: 'doughnut', data: { labels: ['Win', 'Loss', 'BE'], datasets: [{ data: tot > 0 ? [c.winLoss.win, c.winLoss.loss, c.winLoss.be] : [1, 0, 0], backgroundColor: ['rgba(16,185,129,.8)', 'rgba(244,63,94,.8)', 'rgba(245,158,11,.8)'], borderColor: ['#10b981', '#f43f5e', '#f59e0b'], borderWidth: 2, hoverOffset: 8, spacing: 2 }] }, options: { responsive: true, maintainAspectRatio: true, cutout: '68%', plugins: { legend: { display: false }, tooltip: tt } } });
   }
 };
-
 // ═══ TRADES ═══
 const Trades = {
   _trades: [], _filterMonth: '',
   _months: [{ v: '', t: 'Semua Bulan' }, { v: '01', t: 'Januari' }, { v: '02', t: 'Februari' }, { v: '03', t: 'Maret' }, { v: '04', t: 'April' }, { v: '05', t: 'Mei' }, { v: '06', t: 'Juni' }, { v: '07', t: 'Juli' }, { v: '08', t: 'Agustus' }, { v: '09', t: 'September' }, { v: '10', t: 'Oktober' }, { v: '11', t: 'November' }, { v: '12', t: 'Desember' }],
-
   async render() {
     const el = document.getElementById('page-trades');
     el.innerHTML = `<div class="empty-state"><div class="loader-gold" style="margin:0 auto 14px"></div><p>Memuat...</p></div>`;
@@ -396,7 +360,6 @@ const Trades = {
     this._trades = await API.getTrades(App.state.currentAccountId, { month: this._filterMonth });
     this.buildList(el);
   },
-
   buildList(el) {
     const acc = App.state.currentAccount, cur = acc ? acc.Currency : 'IDR', fmt = v => App.fmt(v, cur);
     const selLabel = this._months.find(m => m.v === this._filterMonth)?.t || 'Semua Bulan';
@@ -422,13 +385,11 @@ const Trades = {
     }).join('')}
     </div>`;
   },
-
   openMonthPicker() {
     document.getElementById('monthPickerGrid').innerHTML = this._months.map(m => `<button class="month-grid-btn ${this._filterMonth === m.v ? 'active' : ''}" onclick="Trades.selectMonth('${m.v}')">${m.t}</button>`).join('');
     App.openSheet('monthPickerSheet');
   },
   selectMonth(m) { this._filterMonth = m; App.closeSheet('monthPickerSheet'); this.render(); },
-
   openAddModal() {
     document.getElementById('tradeId').value = '';
     document.getElementById('tradeSheetTitle').innerHTML = '<i class="bi bi-journal-plus me-2"></i>Tambah Trade';
@@ -440,7 +401,6 @@ const Trades = {
     document.getElementById('tradePreview').className = 'trade-preview';
     App.openSheet('tradeSheet');
   },
-
   openEditModal(id) {
     const t = this._trades.find(t => t.TradeID === id); if (!t) return;
     document.getElementById('tradeId').value = id;
@@ -454,11 +414,9 @@ const Trades = {
     this.updateCurrencyLabel(); this.updatePreview(t.ProfitLoss);
     App.openSheet('tradeSheet');
   },
-
   updateMethods() { const m = (App.state.settings.tradingMethods || 'Scalping,Swing,SMC,ICT,Price Action').split(','); document.getElementById('tradeEntry').innerHTML = '<option value="">-- Pilih Metode --</option>' + m.map(x => `<option value="${x.trim()}">${x.trim()}</option>`).join(''); },
   updateCurrencyLabel() { const id = document.getElementById('tradeAccount')?.value; const a = App.state.accounts.find(a => a.AccountID === id); const l = document.getElementById('plSuffix'); if (l) l.textContent = a ? a.Currency : 'IDR'; },
   updatePreview(val) { const v = parseFloat(val), el = document.getElementById('tradePreview'); if (!el) return; if (isNaN(v)) { el.textContent = 'Masukkan nilai P/L'; el.className = 'trade-preview'; return; } el.textContent = `${v > 0 ? 'Win' : v < 0 ? 'Loss' : 'BE'} — ${v > 0 ? '+' : ''}${v}`; el.className = `trade-preview ${v > 0 ? 'win' : v < 0 ? 'loss' : ''}`; },
-
   async saveTrade() {
     const btn = document.getElementById('saveTradeBtn');
     btn.disabled = true; btn.innerHTML = '<span class="loader-gold" style="display:inline-block;width:18px;height:18px;border-width:2px"></span>';
@@ -471,21 +429,17 @@ const Trades = {
     else App.toast('❌ ' + (res.error || 'Gagal'));
     btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-2"></i>Simpan Trade';
   },
-
   confirmDelete(id) { App.confirmDelete(async () => { await API.deleteTrade(id); App.toast('🗑️ Trade dihapus'); await Promise.all([this.render(), Dashboard.render()]); }); }
 };
-
 // ═══ CALCULATOR ═══
 const Calculator = {
   _rate: 15800, _cur: 'IDR', _rMode: 'percent',
-
   async fetchRate() {
     const el = document.getElementById('ratePillText'); if (el) el.textContent = 'Memuat...';
     try { const r = await fetch('https://api.exchangerate-api.com/v4/latest/USD'); const d = await r.json(); this._rate = d.rates?.IDR || 15800; }
     catch { try { const r2 = await fetch('https://api.frankfurter.app/latest?from=USD&to=IDR'); const d2 = await r2.json(); this._rate = d2.rates?.IDR || 15800; } catch { this._rate = 15800; } }
     if (el) el.textContent = 'USD/IDR ' + Math.round(this._rate).toLocaleString('id-ID');
   },
-
   render() {
     const el = document.getElementById('page-calculator');
     el.innerHTML = `<div class="fade-up">
@@ -525,11 +479,9 @@ const Calculator = {
       </div>
     </div>`;
   },
-
   setCur(c) { this._cur = c; this.render(); },
   setRMode(m) { this._rMode = m; this.render(); },
   setQuick(v) { document.getElementById('calRisk').value = v; if (this._rMode !== 'percent') this.setRMode('percent'); },
-
   calculate() {
     const bal = parseFloat(document.getElementById('calBalance').value);
     const risk = parseFloat(document.getElementById('calRisk').value);
@@ -550,11 +502,9 @@ const Calculator = {
     document.getElementById('calRRGrid').innerHTML = [1, 1.5, 2, 2.5, 3, 4].map(rr => `<div class="rr-item"><div class="rr-ratio">1:${rr}</div><div class="rr-val">${this._cur === 'IDR' ? 'Rp ' + Math.round(lot * 10 * sl * rr).toLocaleString('id-ID') : '$' + (lot * 10 * sl * rr).toFixed(2)}</div></div>`).join('');
   }
 };
-
 // ═══ SETTINGS ═══
 const Settings = {
   iconPresets: ['bi-wallet2', 'bi-briefcase-fill', 'bi-bank2', 'bi-cash-coin', 'bi-coin', 'bi-currency-dollar', 'bi-graph-up-arrow', 'bi-bar-chart-line-fill', 'bi-star-fill', 'bi-fire', 'bi-gem', 'bi-award-fill', 'bi-person-circle'],
-
   render() {
     const el = document.getElementById('page-settings');
     try {
@@ -565,7 +515,6 @@ const Settings = {
       el.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i class="bi bi-exclamation-triangle"></i></div><h3>Error Pengaturan</h3><p style="color:var(--loss);font-size:11px">' + e.message + '</p><button class="ghost-btn" style="margin:16px auto 0;width:auto;padding:10px 20px" onclick="Settings.render()">Coba Lagi</button></div>';
     }
   },
-
   build(el, accounts, settings) {
     const methods = settings.tradingMethods || 'Scalping,Swing,SMC,ICT,Price Action';
     el.innerHTML = `<div class="fade-up"><div class="section-title">Pengaturan</div>
@@ -583,7 +532,6 @@ const Settings = {
       <div style="text-align:center;padding:20px 0 8px;font-size:11px;color:var(--text3)">Trading Suite v2.0 · Gold Edition<br/>⚠️ Trading emas mengandung risiko tinggi</div>
     </div>`;
   },
-
   accCard(a) {
     const ic = (a.Icon && typeof a.Icon === 'string') ? a.Icon.trim() : 'bi-wallet2';
     const ih = ic.startsWith('data:') || ic.startsWith('http')
@@ -599,9 +547,7 @@ const Settings = {
       '<button class="icon-micro" style="color:var(--loss)" onclick="Settings.deleteAcc(\'' + a.AccountID + '\')"><i class="bi bi-trash3"></i></button>' +
       '</div></div>';
   },
-
   openAddAccount() { document.getElementById('accountId').value = ''; document.getElementById('accSheetTitle').innerHTML = '<i class="bi bi-person-plus me-2"></i>Tambah Akun'; document.getElementById('accountForm').reset(); document.getElementById('accountIcon').value = 'bi-wallet2'; document.getElementById('accIconPreviewBox').innerHTML = '<i class="bi bi-wallet2"></i>'; this.renderPresets(''); document.getElementById('saveAccountBtn').onclick = () => this.saveAccount(); App.openSheet('accountSheet'); },
-
   openEditAccount(id) {
     const a = App.state.accounts.find(a => a.AccountID === id); if (!a) return;
     document.getElementById('accountId').value = id; document.getElementById('accSheetTitle').innerHTML = '<i class="bi bi-pencil me-2"></i>Edit Akun';
@@ -611,12 +557,10 @@ const Settings = {
     const iv = (a.Icon && typeof a.Icon === 'string') ? a.Icon.trim() : 'bi-wallet2'; document.getElementById('accountIcon').value = iv;
     this.updatePreview(iv); this.renderPresets(iv); document.getElementById('saveAccountBtn').onclick = () => this.saveAccount(); App.openSheet('accountSheet');
   },
-
   renderPresets(cur) { document.getElementById('iconPresets').innerHTML = this.iconPresets.map(ic => `<button type="button" class="icon-preset-btn ${cur === ic ? 'active' : ''}" onclick="Settings.setPreset('${ic}')"><i class="bi ${ic}"></i></button>`).join(''); },
   setPreset(ic) { document.getElementById('accountIconFile').value = ''; document.getElementById('accountIcon').value = ic; this.updatePreview(ic); this.renderPresets(ic); },
   updatePreview(s) { const p = document.getElementById('accIconPreviewBox'); if (!s || !s.trim()) { p.innerHTML = '<i class="bi bi-wallet2"></i>'; return; } if (s.startsWith('data:') || s.startsWith('http')) p.innerHTML = `<img src="${s}" style="width:38px;height:38px;border-radius:9px;object-fit:cover"/>`; else p.innerHTML = `<i class="bi ${s.trim()}" style="font-size:22px"></i>`; },
   handleIconUpload(e) { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => { document.getElementById('accountIcon').value = ev.target.result; this.updatePreview(ev.target.result); }; r.readAsDataURL(f); },
-
   async saveAccount() {
     const btn = document.getElementById('saveAccountBtn'); btn.disabled = true; btn.innerHTML = '<span class="loader-gold" style="width:18px;height:18px;border-width:2px"></span>';
     const id = document.getElementById('accountId').value;
@@ -627,10 +571,8 @@ const Settings = {
     else App.toast('❌ ' + (res.error || 'Gagal'));
     btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-lg me-2"></i>Simpan Akun';
   },
-
   deleteAcc(id) { App.confirmDelete(async () => { await API.deleteAccount(id); App.state.accounts = DB.getAccounts(); if (App.state.currentAccountId === id) { App.state.currentAccountId = null; App.state.currentAccount = null; document.getElementById('topbarSub').textContent = 'Pilih Akun'; } App.toast('🗑️ Akun dihapus'); await this.render(); }); },
   async saveMethods() { await API.updateSettings({ tradingMethods: document.getElementById('tradingMethods').value.trim() }); App.state.settings = DB.getSettings(); App.toast('✅ Metode disimpan!'); },
   async saveConv() { await API.updateSettings({ conversionRatio: document.getElementById('convRatio').value.trim() }); App.state.settings = DB.getSettings(); App.toast('✅ Pengaturan disimpan!'); }
 };
-
 window.addEventListener('DOMContentLoaded', () => App.init());
