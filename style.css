@@ -274,3 +274,33 @@ select.field{cursor:pointer}textarea.field{resize:vertical}
 .wl-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
 .wl-label{flex:1;color:var(--text2);font-size:12px;font-weight:600}
 .wl-cnt{font-family:var(--font-num);font-size:18px;font-weight:900}
+
+/* ── EXPORT PDF BUTTON ── */
+.export-pdf-btn{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border-radius:50px;
+  border:1.5px solid var(--border-gold);background:var(--gold-dim);color:var(--gold);
+  font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;margin-bottom:14px}
+.export-pdf-btn:hover{background:rgba(245,200,66,.2);box-shadow:0 0 14px var(--gold-glow)}
+
+/* ── PRINT / PDF STYLES ── */
+@media print {
+  @page { margin: 16mm; size: A4; }
+  body { background: #fff !important; color: #111 !important; font-family: Arial, sans-serif; }
+  body::before { display: none; }
+  .topbar, .bottom-nav, .bottom-sheet, .toast-wrap,
+  .export-pdf-btn, .icon-micro, .icon-btn,
+  #loadingScreen, [id$="Sheet"] { display: none !important; }
+  .page-area { overflow: visible !important; padding: 0 !important; height: auto !important; }
+  #root { height: auto !important; overflow: visible !important; }
+  .card, .stat-item, .hero-card, .daily-card, .chart-card, .idr-card, .trade-item {
+    border: 1px solid #ddd !important; background: #fafafa !important;
+    box-shadow: none !important; break-inside: avoid;
+  }
+  .hero-val, .lot-big, .stat-item-val { color: #111 !important; -webkit-text-fill-color: #111 !important; }
+  .t-win { color: #059669 !important; } .t-loss { color: #dc2626 !important; } .t-gold { color: #b45309 !important; }
+  .section-title { color: #111 !important; font-size: 20px !important; }
+  .section-sub, .hero-sub, .trade-date { color: #555 !important; }
+  .stat-grid { grid-template-columns: 1fr 1fr 1fr 1fr !important; }
+  canvas { max-width: 100% !important; }
+  .fade-up { animation: none !important; }
+}
+

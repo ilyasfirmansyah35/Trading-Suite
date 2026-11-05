@@ -1,5 +1,6 @@
-const CACHE = 'ts-v2';
-const SHELL = ['./', './index.html', './style.css', './app.js', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE = 'ts-v3';
+const SHELL = ['./', './index.html', './style.css', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
+
 
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(n => n !== CACHE).map(n => caches.delete(n))))); self.clients.claim(); });
