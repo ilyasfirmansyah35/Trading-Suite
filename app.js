@@ -203,19 +203,108 @@ const App = {
   openSheet(id) { document.getElementById(id)?.classList.add('open'); },
   closeSheet(id) { document.getElementById(id)?.classList.remove('open'); },
 
-  exportPDF(page) {
-    // show only the target page for printing
-    const pages = ['dashboard', 'calculator', 'trades', 'settings'];
-    const hidden = [];
-    pages.forEach(p => {
-      const el = document.getElementById('page-' + p);
-      if (el && el.classList.contains('d-none')) { el.classList.remove('d-none'); hidden.push(p); }
-    });
-    const title = document.title;
-    document.title = 'Trading Suite - ' + (page === 'dashboard' ? 'Dashboard' : 'Riwayat Trading') + ' - ' + new Date().toLocaleDateString('id-ID');
-    window.print();
-    document.title = title;
-    hidden.forEach(p => document.getElementById('page-' + p)?.classList.add('d-none'));
+  async downloadPDF() {
+    const btn = event?.target?.closest('button');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="loader-gold" style="display:inline-block;width:14px;height:14px;border-width:2px"></span> Membuat PDF...'; }
+    try {
+      // Load jsPDF
+      if (!window.jspdf) {
+        await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+        await new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js'; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+      }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const acc = App.state.currentAccount;
+      const cur = acc ? acc.Currency : 'IDR';
+      const accId = App.state.currentAccountId;
+      const trades = DB.getTrades().filter(t => t.AccountID === accId).sort((a, b) => b.Date.localeCompare(a.Date));
+      const stats = await API.getStats(accId);
+      const s = stats.summary;
+      const now = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+      // Header bar
+      doc.setFillColor(9, 13, 22);
+      doc.rect(0, 0, 210, 38, 'F');
+      doc.setTextColor(245, 200, 66);
+      doc.setFontSize(20); doc.setFont('helvetica', 'bold');
+      doc.text('Trading Suite', 14, 18);
+      doc.setFontSize(10); doc.setFont('helvetica', 'normal');
+      doc.setTextColor(180, 180, 180);
+      doc.text((acc ? acc.Name : '') + ' · ' + cur, 14, 27);
+      doc.text('Dicetak: ' + now, 14, 34);
+      doc.setTextColor(245, 200, 66);
+      doc.setFontSize(8);
+      doc.text('GOLD EDITION', 196, 18, { align: 'right' });
+
+      // Summary
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+      doc.text('Ringkasan Akun', 14, 50);
+      doc.autoTable({
+        startY: 54,
+        head: [['Metrik', 'Nilai']],
+        body: [
+          ['Saldo Saat Ini', App.fmt(s.currentBalance, cur)],
+          ['Net P/L', (s.netProfit >= 0 ? '+' : '') + App.fmt(s.netProfit, cur)],
+          ['Win Rate', s.winRate + '%'],
+          ['Total Trade', String(s.totalTrade)],
+          ['Total Profit', App.fmt(s.totalProfit, cur)],
+          ['Total Loss', App.fmt(s.totalLoss, cur)],
+          ['Best Trade', App.fmt(s.bestTrade, cur)],
+          ['Worst Trade', App.fmt(s.worstTrade, cur)],
+        ],
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [9, 13, 22], textColor: [245, 200, 66], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 248, 248] },
+        columnStyles: { 0: { fontStyle: 'bold', cellWidth: 60 }, 1: { cellWidth: 'auto' } },
+        margin: { left: 14, right: 14 }
+      });
+
+      // Trades table
+      const fy = doc.lastAutoTable.finalY + 10;
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+      doc.text('Riwayat Transaksi (' + trades.length + ' data)', 14, fy);
+      doc.autoTable({
+        startY: fy + 4,
+        head: [['Tanggal', 'Metode', 'Profit/Loss', 'Hasil', 'Catatan']],
+        body: trades.map(t => [
+          t.Date ? new Date(t.Date + 'T00:00').toLocaleDateString('id-ID') : '',
+          t.Entry || '—',
+          (parseFloat(t.ProfitLoss) > 0 ? '+' : '') + App.fmt(t.ProfitLoss, cur),
+          t.Result || '—',
+          t.PsychologyNotes || ''
+        ]),
+        styles: { fontSize: 8, cellPadding: 2.5 },
+        headStyles: { fillColor: [9, 13, 22], textColor: [245, 200, 66], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [250, 250, 250] },
+        columnStyles: { 0: { cellWidth: 26 }, 1: { cellWidth: 28 }, 2: { cellWidth: 32, halign: 'right' }, 3: { cellWidth: 18, halign: 'center' }, 4: { cellWidth: 'auto' } },
+        didParseCell(data) {
+          if (data.section === 'body' && data.column.index === 3) {
+            if (data.cell.raw === 'Win') data.cell.styles.textColor = [5, 150, 105];
+            else if (data.cell.raw === 'Loss') data.cell.styles.textColor = [220, 38, 38];
+          }
+          if (data.section === 'body' && data.column.index === 2) {
+            const v = parseFloat((data.cell.raw || '').replace(/[^0-9.-]/g, ''));
+            data.cell.styles.textColor = v > 0 ? [5, 150, 105] : v < 0 ? [220, 38, 38] : [80, 80, 80];
+          }
+        },
+        margin: { left: 14, right: 14 }
+      });
+
+      // Footer on each page
+      const pages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7); doc.setTextColor(150, 150, 150);
+        doc.text('Trading Suite · Hlm ' + i + '/' + pages, 14, 289);
+        doc.text('⚠️ Trading emas mengandung risiko tinggi', 196, 289, { align: 'right' });
+      }
+
+      const fname = 'Trading-Suite-' + (acc ? acc.Name.replace(/\s+/g, '-') : 'Report') + '-' + new Date().toISOString().slice(0, 10) + '.pdf';
+      doc.save(fname);
+      App.toast('✅ PDF berhasil didownload!');
+    } catch (e) { App.toast('❌ Gagal buat PDF: ' + e.message); }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-file-earmark-pdf-fill"></i> Download PDF'; }
   },
 
   confirmDelete(cb) {
@@ -336,7 +425,7 @@ const Dashboard = {
     el.innerHTML = `<div class="fade-up">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <div><div class="section-title">Dashboard</div><div class="section-sub">${acc ? acc.Name + ' · ' + acc.Currency : ''}</div></div>
-        <button class="export-pdf-btn" onclick="App.exportPDF('dashboard')"><i class="bi bi-file-earmark-pdf-fill"></i> Export PDF</button>
+        <button class="export-pdf-btn" onclick="App.downloadPDF()"><i class="bi bi-file-earmark-pdf-fill"></i> Download PDF</button>
       </div>
       <div class="hero-card">
         <div class="hero-label">Saldo Saat Ini · ${acc ? acc.Name : ''}</div>
@@ -422,7 +511,7 @@ const Trades = {
     el.innerHTML = `<div class="fade-up">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <div><div class="section-title">Riwayat Trading</div><div class="section-sub">Total <strong>${this._trades.length}</strong> trade${this._filterMonth ? ' · ' + selLabel : ''}</div></div>
-        <button class="export-pdf-btn" onclick="App.exportPDF('trades')"><i class="bi bi-file-earmark-pdf-fill"></i> Export PDF</button>
+        <button class="export-pdf-btn" onclick="App.downloadPDF()"><i class="bi bi-file-earmark-pdf-fill"></i> Download PDF</button>
       </div>
       <button class="month-picker-btn ${this._filterMonth ? 'active' : ''}" onclick="Trades.openMonthPicker()">
         <i class="bi bi-calendar3 me-2" style="font-size:16px"></i><span>${selLabel}</span>
