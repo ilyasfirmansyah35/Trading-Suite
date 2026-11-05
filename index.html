@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+    <meta name="theme-color" content="#F5C842" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Trading Suite" />
+    <meta name="description" content="XAUUSD Lot Calculator & Trading Journal — Gold Edition" />
+    <title>Trading Suite</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;800;900&display=swap" rel="stylesheet" />
+
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --gold: #F5C842;
+            --gold-l: #FFE57A;
+            --gold-d: #C49A1A;
+            --gold-glow: rgba(245, 200, 66, .35);
+            --bg: #090d16;
+            --bg2: #0f1420;
+        }
+
+        html,
+        body {
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            background: var(--bg);
+            font-family: 'Outfit', -apple-system, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── BACKGROUND GLOW ── */
+        .bg-glow {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 50% 0%, rgba(245, 200, 66, .10) 0%, transparent 65%),
+                radial-gradient(ellipse 60% 50% at 20% 80%, rgba(245, 200, 66, .05) 0%, transparent 70%),
+                radial-gradient(ellipse 50% 40% at 80% 90%, rgba(16, 185, 129, .04) 0%, transparent 60%);
+        }
+
+        /* ── GRID OVERLAY ── */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            background-image:
+                linear-gradient(rgba(245, 200, 66, .03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(245, 200, 66, .03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+        }
+
+        /* ── WRAP ── */
+        .wrap {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            padding: 32px;
+        }
+
+        /* ── ORBIT SYSTEM ── */
+        .orbit-system {
+            position: relative;
+            width: 180px;
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 40px;
+        }
+
+        .orbit {
+            position: absolute;
+            border-radius: 50%;
+            border: 1.5px solid transparent;
+            animation: spin linear infinite;
+        }
+
+        .orbit-1 {
+            width: 180px;
+            height: 180px;
+            border-color: rgba(245, 200, 66, .18) rgba(245, 200, 66, .04) transparent rgba(245, 200, 66, .08);
+            animation-duration: 6s;
+        }
+
+        .orbit-2 {
+            width: 140px;
+            height: 140px;
+            border-color: transparent rgba(245, 200, 66, .22) rgba(245, 200, 66, .06) transparent;
+            animation-duration: 4s;
+            animation-direction: reverse;
+        }
+
+        .orbit-3 {
+            width: 104px;
+            height: 104px;
+            border-color: rgba(245, 200, 66, .12) transparent rgba(245, 200, 66, .2) transparent;
+            animation-duration: 3s;
+        }
+
+        /* Orbit dots */
+        .orbit::after {
+            content: '';
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--gold);
+            box-shadow: 0 0 8px var(--gold), 0 0 16px var(--gold-glow);
+            top: -3px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .orbit-2::after {
+            top: auto;
+            bottom: -3px;
+            background: rgba(245, 200, 66, .7);
+            box-shadow: 0 0 6px var(--gold-glow);
+        }
+
+        .orbit-3::after {
+            top: 50%;
+            left: -3px;
+            transform: translateY(-50%);
+            background: var(--gold-l);
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ── CENTER LOGO ── */
+        .logo-box {
+            position: relative;
+            z-index: 2;
+            width: 72px;
+            height: 72px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, #141b2a, #0f1420);
+            border: 1.5px solid rgba(245, 200, 66, .3);
+            box-shadow: 0 0 30px rgba(245, 200, 66, .2), inset 0 1px 0 rgba(255, 255, 255, .06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: logoBreath 3s ease-in-out infinite;
+        }
+
+        @keyframes logoBreath {
+
+            0%,
+            100% {
+                box-shadow: 0 0 24px rgba(245, 200, 66, .18), inset 0 1px 0 rgba(255, 255, 255, .06);
+            }
+
+            50% {
+                box-shadow: 0 0 42px rgba(245, 200, 66, .32), inset 0 1px 0 rgba(255, 255, 255, .06);
+            }
+        }
+
+        /* SVG chart icon */
+        .logo-svg {
+            width: 38px;
+            height: 38px;
+        }
+
+        /* ── TEXT ── */
+        .app-name {
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: -1.5px;
+            line-height: 1;
+            background: linear-gradient(135deg, var(--gold-l) 0%, var(--gold) 50%, var(--gold-d) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            animation: fadeUp .6s .2s both;
+        }
+
+        .app-tag {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: rgba(245, 200, 66, .5);
+            margin-bottom: 48px;
+            animation: fadeUp .6s .35s both;
+        }
+
+        /* ── PROGRESS ── */
+        .progress-wrap {
+            width: 200px;
+            animation: fadeUp .6s .5s both;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .progress-status {
+            font-size: 11px;
+            font-weight: 600;
+            color: rgba(148, 163, 184, .7);
+            letter-spacing: .5px;
+        }
+
+        .progress-pct {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--gold);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .progress-track {
+            height: 3px;
+            background: rgba(255, 255, 255, .06);
+            border-radius: 99px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 99px;
+            background: linear-gradient(90deg, var(--gold-d), var(--gold), var(--gold-l));
+            width: 0%;
+            transition: width .12s ease;
+            box-shadow: 0 0 8px var(--gold-glow);
+        }
+
+        /* ── BADGE ── */
+        .version-badge {
+            position: fixed;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10px;
+            font-weight: 600;
+            color: rgba(148, 163, 184, .4);
+            letter-spacing: 1.5px;
+            white-space: nowrap;
+            animation: fadeUp .6s .8s both;
+        }
+
+        /* ── INSTALL TOAST ── */
+        .install-toast {
+            position: fixed;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(15, 20, 32, .97);
+            border: 1px solid rgba(245, 200, 66, .25);
+            border-radius: 50px;
+            padding: 12px 22px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #f1f5f9;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: all .4s;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, .4);
+            z-index: 999;
+        }
+
+        .install-toast.show {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .install-toast-icon {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--gold), var(--gold-d));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #090d16;
+            font-size: 14px;
+            font-weight: 900;
+            flex-shrink: 0;
+        }
+
+        .install-toast button {
+            margin-left: 6px;
+            background: linear-gradient(135deg, var(--gold), var(--gold-d));
+            border: none;
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 12px;
+            font-weight: 800;
+            color: #090d16;
+            cursor: pointer;
+        }
+
+        .install-toast-close {
+            background: transparent !important;
+            border: none;
+            color: rgba(148, 163, 184, .6);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 0 0 0 4px;
+            line-height: 1;
+        }
+
+        /* ── TRANSITIONS ── */
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(14px);
+            }
+
+            to {
+                opacity: 1;
+                transform: none;
+            }
+        }
+
+        .fade-out {
+            animation: fadeOut .5s ease forwards !important;
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: scale(.97);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="bg-glow"></div>
+    <div class="bg-grid"></div>
+
+    <div class="wrap" id="wrap">
+        <!-- Orbit system + logo -->
+        <div class="orbit-system">
+            <div class="orbit orbit-1"></div>
+            <div class="orbit orbit-2"></div>
+            <div class="orbit orbit-3"></div>
+            <div class="logo-box">
+                <!-- Inline SVG gold chart icon -->
+                <svg class="logo-svg" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="g1" x1="0" y1="1" x2="1" y2="0">
+                            <stop offset="0%" stop-color="#C49A1A" />
+                            <stop offset="50%" stop-color="#F5C842" />
+                            <stop offset="100%" stop-color="#FFE57A" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Bars -->
+                    <rect x="4" y="22" width="5" height="10" rx="2" fill="url(#g1)" opacity=".7" />
+                    <rect x="12" y="16" width="5" height="16" rx="2" fill="url(#g1)" opacity=".85" />
+                    <rect x="20" y="10" width="5" height="22" rx="2" fill="url(#g1)" />
+                    <rect x="28" y="5" width="5" height="27" rx="2" fill="url(#g1)" opacity=".9" />
+                    <!-- Trend line -->
+                    <polyline points="6,20 14,13 22,8 30,4" stroke="#FFE57A" stroke-width="1.5" stroke-linecap="round"
+                        stroke-linejoin="round" opacity=".6" />
+                    <!-- Dot -->
+                    <circle cx="30" cy="4" r="2" fill="#FFE57A" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Branding -->
+        <div class="app-name">Trading Suite</div>
+        <div class="app-tag">XAUUSD · Calculator · Journal</div>
+
+        <!-- Progress -->
+        <div class="progress-wrap">
+            <div class="progress-label">
+                <span class="progress-status" id="statusText">Memuat aplikasi…</span>
+                <span class="progress-pct" id="pctText">0%</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="version-badge">GOLD EDITION · v2.0</div>
+
+    <!-- Install PWA toast -->
+    <div class="install-toast" id="installToast">
+        <div class="install-toast-icon">↓</div>
+        <span>Install sebagai App</span>
+        <button id="installBtn">Install</button>
+        <button class="install-toast-close" id="closeToast">×</button>
+    </div>
+
+    <script>
+        // ── CONFIG ── Ganti dengan URL Google Apps Script Web App kamu
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbw_lOHkkAFyr5Dqe3ByxjkUUcumzDQLG8BrYU1MESCVgC_pf_IxMrsPKMewdCUWabvG2g/exec';
+        // Contoh: 'https://script.google.com/macros/s/AKfycb.../exec'
+
+        // ── REGISTER SERVICE WORKER ──
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js').catch(() => { });
+        }
+
+        // ── PROGRESS ANIMATION ──
+        const fill = document.getElementById('progressFill');
+        const pct = document.getElementById('pctText');
+        const status = document.getElementById('statusText');
+        const wrap = document.getElementById('wrap');
+
+        const steps = [
+            { p: 20, t: 300, s: 'Memuat aset…' },
+            { p: 45, t: 700, s: 'Menghubungkan…' },
+            { p: 70, t: 1200, s: 'Memuat data…' },
+            { p: 90, t: 1800, s: 'Hampir selesai…' },
+            { p: 100, t: 2400, s: 'Siap!' }
+        ];
+
+        steps.forEach(({ p, t, s }) => {
+            setTimeout(() => {
+                fill.style.width = p + '%';
+                pct.textContent = p + '%';
+                status.textContent = s;
+            }, t);
+        });
+
+        // ── REDIRECT ──
+        setTimeout(() => {
+            wrap.classList.add('fade-out');
+            setTimeout(() => {
+                if (GAS_URL && GAS_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
+                    window.location.replace(GAS_URL);
+                } else {
+                    // Jika URL belum diset, tampilkan pesan
+                    status.textContent = '⚠️ URL belum dikonfigurasi';
+                    fill.style.background = '#f43f5e';
+                    pct.style.color = '#f43f5e';
+                    pct.textContent = '!';
+                    wrap.classList.remove('fade-out');
+                }
+            }, 500);
+        }, 3000);
+
+        // ── PWA INSTALL PROMPT ──
+        let deferredPrompt;
+        const toast = document.getElementById('installToast');
+        const instBtn = document.getElementById('installBtn');
+        const closeBtn = document.getElementById('closeToast');
+
+        window.addEventListener('beforeinstallprompt', e => {
+            e.preventDefault();
+            deferredPrompt = e;
+            setTimeout(() => toast.classList.add('show'), 4500);
+        });
+
+        instBtn.addEventListener('click', async () => {
+            toast.classList.remove('show');
+            if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt = null; }
+        });
+        closeBtn.addEventListener('click', () => toast.classList.remove('show'));
+    </script>
+</body>
+
+</html>
