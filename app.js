@@ -555,11 +555,15 @@ const Calculator = {
 const Settings = {
   iconPresets: ['bi-wallet2', 'bi-briefcase-fill', 'bi-bank2', 'bi-cash-coin', 'bi-coin', 'bi-currency-dollar', 'bi-graph-up-arrow', 'bi-bar-chart-line-fill', 'bi-star-fill', 'bi-fire', 'bi-gem', 'bi-award-fill', 'bi-person-circle'],
 
-  async render() {
+  render() {
     const el = document.getElementById('page-settings');
-    el.innerHTML = `<div class="empty-state"><div class="loader-gold" style="margin:0 auto 14px"></div><p>Memuat...</p></div>`;
-    App.state.accounts = DB.getAccounts(); App.state.settings = DB.getSettings();
-    this.build(el, App.state.accounts, App.state.settings);
+    try {
+      App.state.accounts = DB.getAccounts();
+      App.state.settings = DB.getSettings();
+      this.build(el, App.state.accounts, App.state.settings);
+    } catch (e) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-state-icon"><i class="bi bi-exclamation-triangle"></i></div><h3>Error Pengaturan</h3><p style="color:var(--loss);font-size:11px">' + e.message + '</p><button class="ghost-btn" style="margin:16px auto 0;width:auto;padding:10px 20px" onclick="Settings.render()">Coba Lagi</button></div>';
+    }
   },
 
   build(el, accounts, settings) {
@@ -582,14 +586,18 @@ const Settings = {
 
   accCard(a) {
     const ic = (a.Icon && typeof a.Icon === 'string') ? a.Icon.trim() : 'bi-wallet2';
-    const ih = ic.startsWith('data:') ? `<img src="${ic}" style="width:28px;height:28px;border-radius:7px;object-fit:cover"/>` : `<i class="bi ${ic}"></i>`;
-    return `<div class="acc-card"><div class="acc-icon-box">${ih}</div>
-      <div style="flex:1;min-width:0"><div class="acc-name">${a.Name}</div>
-        <div class="acc-cur">${a.Currency} · ${a.Status}${a.DailyTargetPct > 0 ? ` · Target ${a.DailyTargetPct}%` : a.DailyTarget > 0 ? ` · Target ${App.fmt(a.DailyTarget, a.Currency)}` : ''}</div></div>
-      <div style="display:flex;gap:6px">
-        <button class="icon-micro" onclick="Settings.openEditAccount('${a.AccountID}')"><i class="bi bi-pencil"></i></button>
-        <button class="icon-micro" style="color:var(--loss)" onclick="Settings.deleteAcc('${a.AccountID}')"><i class="bi bi-trash3"></i></button>
-      </div></div>`;
+    const ih = ic.startsWith('data:') || ic.startsWith('http')
+      ? '<img src="' + ic + '" style="width:28px;height:28px;border-radius:7px;object-fit:cover"/>'
+      : '<i class="bi ' + ic + '"></i>';
+    const tgt = a.DailyTargetPct > 0 ? ' · Target ' + a.DailyTargetPct + '%'
+      : a.DailyTarget > 0 ? ' · Target ' + App.fmt(a.DailyTarget, a.Currency) : '';
+    return '<div class="acc-card"><div class="acc-icon-box">' + ih + '</div>' +
+      '<div style="flex:1;min-width:0"><div class="acc-name">' + a.Name + '</div>' +
+      '<div class="acc-cur">' + a.Currency + ' · ' + a.Status + tgt + '</div></div>' +
+      '<div style="display:flex;gap:6px">' +
+      '<button class="icon-micro" onclick="Settings.openEditAccount(\'' + a.AccountID + '\')"><i class="bi bi-pencil"></i></button>' +
+      '<button class="icon-micro" style="color:var(--loss)" onclick="Settings.deleteAcc(\'' + a.AccountID + '\')"><i class="bi bi-trash3"></i></button>' +
+      '</div></div>';
   },
 
   openAddAccount() { document.getElementById('accountId').value = ''; document.getElementById('accSheetTitle').innerHTML = '<i class="bi bi-person-plus me-2"></i>Tambah Akun'; document.getElementById('accountForm').reset(); document.getElementById('accountIcon').value = 'bi-wallet2'; document.getElementById('accIconPreviewBox').innerHTML = '<i class="bi bi-wallet2"></i>'; this.renderPresets(''); document.getElementById('saveAccountBtn').onclick = () => this.saveAccount(); App.openSheet('accountSheet'); },
