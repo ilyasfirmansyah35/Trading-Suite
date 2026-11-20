@@ -128,6 +128,15 @@ const API = {
       if (key) mnMap[key] = (mnMap[key] || 0) + (parseFloat(t.ProfitLoss) || 0);
     });
 
+    // Daily P/L map for calendar
+    const dayMap = {};
+    sorted.forEach(t => {
+      const d = t.Date;
+      if (d) dayMap[d] = (dayMap[d] || 0) + (parseFloat(t.ProfitLoss) || 0);
+    });
+    const dayLabels = Object.keys(dayMap).sort();
+    const dayData = dayLabels.map(d => Math.round(dayMap[d] * 100) / 100);
+
     return Promise.resolve({
       summary: {
         winRate: all.length > 0 ? ((wins.length / all.length) * 100).toFixed(1) : 0,
@@ -142,6 +151,7 @@ const API = {
       },
       charts: {
         equity: { labels: eqLabels, data: eqData },
+        daily: { labels: dayLabels, data: dayData },
         monthly: { labels: Object.keys(mnMap), data: Object.values(mnMap) },
         winLoss: { win: wins.length, loss: losses.length, be: all.filter(t => t.Result === 'BE').length }
       }
@@ -464,6 +474,27 @@ const Dashboard = {
               <div style="font-family:var(--font-num);font-size:15px;font-weight:800;color:var(--loss)">Rp ${Math.abs(lossIDR).toLocaleString('id-ID')}</div></div>
           </div></div>`;
       })() : ''}
+
+      <!-- Daily Calendar -->
+      <div class="chart-card" id="calendarPanel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold)"></div>
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3)">Catatan Harian</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <button class="cal-nav-btn" onclick="Dashboard.calPrev()"><i class="bi bi-chevron-left"></i></button>
+            <span id="calMonthLabel" style="font-size:13px;font-weight:700;color:var(--text);min-width:100px;text-align:center"></span>
+            <button class="cal-nav-btn" onclick="Dashboard.calNext()"><i class="bi bi-chevron-right"></i></button>
+          </div>
+        </div>
+        <div class="cal-weekdays">
+          <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div id="calSummary" style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap"></div>
+      </div>
+
       ${hasChart ? `
       <div class="chart-card"><div style="display:flex;align-items:center;gap:8px;margin-bottom:16px"><div style="width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold)"></div><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3)">Equity Curve</span></div><canvas id="eqChart" height="130"></canvas></div>
       <div class="chart-card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px"><div style="display:flex;align-items:center;gap:8px"><div style="width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold)"></div><span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3)">P/L per Bulan</span></div><span style="font-size:10px;color:var(--text3)">${c.monthly.labels.length} bulan</span></div><canvas id="mnChart" height="130"></canvas></div>
@@ -475,7 +506,87 @@ const Dashboard = {
             <div class="wl-legend-item" style="color:var(--be)"><div class="wl-dot" style="background:var(--be)"></div><span class="wl-label">BE</span><span class="wl-cnt">${c.winLoss.be}</span></div>
           </div></div></div>`: `<div class="card" style="text-align:center;padding:20px;color:var(--text3)"><i class="bi bi-bar-chart-line" style="font-size:28px;opacity:.3;display:block;margin-bottom:8px"></i><div style="font-size:12px">Chart tidak tersedia</div></div>`}
     </div>`;
+    // Store daily data for calendar & render it
+    this._chartDaily = c.daily;
+    this._currency = cur;
+    const now = new Date();
+    if (!this._calYear) { this._calYear = now.getFullYear(); this._calMonth = now.getMonth(); }
+    setTimeout(() => this.renderCalendar(), 50);
     if (hasChart) setTimeout(() => this.drawCharts(c), 150);
+  },
+
+  // ── Calendar Panel ──
+  calPrev() {
+    this._calMonth--;
+    if (this._calMonth < 0) { this._calMonth = 11; this._calYear--; }
+    this.renderCalendar();
+  },
+  calNext() {
+    this._calMonth++;
+    if (this._calMonth > 11) { this._calMonth = 0; this._calYear++; }
+    this.renderCalendar();
+  },
+  renderCalendar() {
+    const year = this._calYear, month = this._calMonth;
+    const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+    const label = document.getElementById('calMonthLabel');
+    if (label) label.textContent = monthNames[month] + ' ' + year;
+
+    const dailyMap = {};
+    if (this._chartDaily && this._chartDaily.labels) {
+      this._chartDaily.labels.forEach((d, i) => { dailyMap[d] = this._chartDaily.data[i]; });
+    }
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const cur = this._currency || 'IDR';
+    const fmt = v => App.fmt(v, cur);
+
+    let html = '';
+    let totalProfit = 0, totalLoss = 0, winDays = 0, lossDays = 0;
+
+    for (let i = 0; i < firstDay; i++) html += '<div class="cal-cell empty"></div>';
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+      const pl = dailyMap[dateStr];
+      const isToday = dateStr === todayStr;
+      let cls = 'cal-cell', valHtml = '';
+
+      if (pl !== undefined && pl !== 0) {
+        if (pl > 0) { cls += ' cal-win'; totalProfit += pl; winDays++; }
+        else { cls += ' cal-loss'; totalLoss += Math.abs(pl); lossDays++; }
+        const abs = Math.abs(pl);
+        let disp;
+        if (cur === 'Cent') {
+          disp = (pl > 0 ? '+' : '-') + (abs >= 1000 ? Math.round(abs) : abs.toFixed(2));
+        } else {
+          if (abs >= 1000000) disp = (pl > 0 ? '+' : '-') + (abs / 1000000).toFixed(1) + 'jt';
+          else if (abs >= 1000) disp = (pl > 0 ? '+' : '-') + (abs / 1000).toFixed(abs >= 10000 ? 0 : 1) + 'k';
+          else disp = (pl > 0 ? '+' : '-') + abs;
+        }
+        valHtml = '<div class="cal-val">' + disp + '</div>';
+      } else if (pl === 0) {
+        cls += ' cal-be';
+        valHtml = '<div class="cal-val" style="color:var(--be)">BE</div>';
+      }
+      if (isToday) cls += ' cal-today';
+
+      html += '<div class="' + cls + '"><div class="cal-day' + (isToday ? ' today-dot' : '') + '">' + day + '</div>' + valHtml + '</div>';
+    }
+
+    const grid = document.getElementById('calGrid');
+    if (grid) grid.innerHTML = html;
+
+    const net = totalProfit - totalLoss;
+    const summaryEl = document.getElementById('calSummary');
+    if (summaryEl) {
+      summaryEl.innerHTML =
+        '<div class="cal-summary-chip win"><i class="bi bi-caret-up-fill"></i> ' + winDays + ' hari profit</div>' +
+        '<div class="cal-summary-chip loss"><i class="bi bi-caret-down-fill"></i> ' + lossDays + ' hari loss</div>' +
+        '<div class="cal-summary-chip ' + (net >= 0 ? 'win' : 'loss') + '">Net: ' + (net >= 0 ? '+' : '') + fmt(Math.round(net * 100) / 100) + '</div>';
+    }
   },
 
   drawCharts(c) {

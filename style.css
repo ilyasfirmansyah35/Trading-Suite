@@ -281,6 +281,34 @@ select.field{cursor:pointer}textarea.field{resize:vertical}
   font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;margin-bottom:14px}
 .export-pdf-btn:hover{background:rgba(245,200,66,.2);box-shadow:0 0 14px var(--gold-glow)}
 
+/* ── DAILY CALENDAR ── */
+.cal-nav-btn{width:28px;height:28px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);
+  color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;
+  transition:all .2s;flex-shrink:0}
+.cal-nav-btn:hover{border-color:var(--border-gold);color:var(--gold);background:var(--gold-dim)}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px}
+.cal-weekdays>div{text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);padding:4px 0}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-cell{aspect-ratio:1/1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:1px;padding:2px;position:relative;background:rgba(255,255,255,.02);border:1px solid transparent;
+  transition:all .2s;min-height:42px;overflow:hidden}
+.cal-cell.empty{background:transparent;border:none}
+.cal-cell.cal-win{background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.2)}
+.cal-cell.cal-loss{background:rgba(244,63,94,.12);border-color:rgba(244,63,94,.2)}
+.cal-cell.cal-be{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.15)}
+.cal-cell.cal-today{border-color:var(--gold) !important;box-shadow:0 0 8px var(--gold-glow)}
+.cal-day{font-size:10px;font-weight:700;color:var(--text2);line-height:1}
+.cal-day.today-dot{color:var(--gold);position:relative}
+.cal-day.today-dot::after{content:'';position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);
+  width:4px;height:4px;background:var(--gold);border-radius:50%}
+.cal-val{font-family:var(--font-num);font-size:8px;font-weight:800;line-height:1;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.cal-win .cal-val{color:var(--win)}
+.cal-loss .cal-val{color:var(--loss)}
+.cal-summary-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:50px;font-size:10px;font-weight:700}
+.cal-summary-chip.win{background:rgba(16,185,129,.1);color:var(--win);border:1px solid rgba(16,185,129,.2)}
+.cal-summary-chip.loss{background:rgba(244,63,94,.1);color:var(--loss);border:1px solid rgba(244,63,94,.2)}
+
 /* ── PRINT / PDF STYLES ── */
 @media print {
   @page { margin: 16mm; size: A4; }
