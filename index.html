@@ -194,18 +194,33 @@
 
     <!-- Loading Screen -->
     <div id="loadingScreen"
-        style="position:fixed;inset:0;background:#090d16;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:20px">
-        <div
-            style="width:44px;height:44px;border:3.5px solid rgba(245,200,66,.25);border-top-color:#F5C842;border-radius:50%;animation:ldspin .7s linear infinite">
+        style="position:fixed;inset:0;background:#090d16;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;overflow:hidden">
+        <!-- Background glow -->
+        <div style="position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);width:300px;height:300px;background:radial-gradient(circle,rgba(245,200,66,.08) 0%,transparent 70%);pointer-events:none"></div>
+        <!-- Logo -->
+        <div style="width:72px;height:72px;background:linear-gradient(135deg,#F5C842,#C49A1A);border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:32px;color:#090d16;box-shadow:0 8px 40px rgba(245,200,66,.3);animation:ldpop .6s ease-out both;margin-bottom:20px">
+            <i class="bi bi-graph-up-arrow"></i>
         </div>
-        <div style="font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#475569">Trading
-            Suite</div>
+        <!-- App Name -->
+        <div style="font-family:'Outfit',sans-serif;font-size:24px;font-weight:900;letter-spacing:-0.5px;background:linear-gradient(135deg,#FFE57A,#F5C842,#C49A1A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:ldpop .6s .15s ease-out both;margin-bottom:6px">
+            Trading Suite</div>
+        <div style="font-size:11px;font-weight:600;letter-spacing:3px;text-transform:uppercase;color:#475569;animation:ldpop .6s .25s ease-out both;margin-bottom:28px">
+            Gold Edition</div>
+        <!-- Spinner -->
+        <div style="display:flex;align-items:center;gap:6px;animation:ldpop .6s .4s ease-out both">
+            <div style="width:6px;height:6px;border-radius:50%;background:#F5C842;animation:lddot 1.2s ease-in-out infinite"></div>
+            <div style="width:6px;height:6px;border-radius:50%;background:#F5C842;animation:lddot 1.2s .2s ease-in-out infinite"></div>
+            <div style="width:6px;height:6px;border-radius:50%;background:#F5C842;animation:lddot 1.2s .4s ease-in-out infinite"></div>
+        </div>
+        <!-- Copyright -->
+        <div style="position:absolute;bottom:40px;text-align:center;animation:ldpop .6s .5s ease-out both">
+            <div style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:#334155">by</div>
+            <div style="font-family:'Outfit',sans-serif;font-size:14px;font-weight:800;background:linear-gradient(135deg,#F5C842,#C49A1A);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:1px">PimenFx</div>
+        </div>
         <style>
-            @keyframes ldspin {
-                to {
-                    transform: rotate(360deg)
-                }
-            }
+            @keyframes ldspin { to { transform: rotate(360deg) } }
+            @keyframes ldpop { from { opacity:0; transform:translateY(12px) } to { opacity:1; transform:translateY(0) } }
+            @keyframes lddot { 0%,100% { opacity:.2; transform:scale(.8) } 50% { opacity:1; transform:scale(1.2) } }
         </style>
     </div>
 

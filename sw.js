@@ -1,4 +1,4 @@
-const CACHE = 'ts-v8';
+const CACHE = 'ts-v10';
 const SHELL = ['./', './index.html', './style.css', './app.js', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 
