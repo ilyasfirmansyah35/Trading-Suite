@@ -744,6 +744,7 @@ const Calculator = {
         </div>
         <div class="card" style="margin-bottom:24px"><div class="card-title">R:R Simulasi</div><div style="display:flex;flex-direction:column;gap:8px" id="calRRGrid"></div></div>
       </div>
+      <div style="height:60px"></div>
     </div>`;
   },
 
