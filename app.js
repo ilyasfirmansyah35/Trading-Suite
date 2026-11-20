@@ -808,7 +808,7 @@ const Settings = {
       <div class="settings-item"><div class="settings-label"><i class="bi bi-arrow-left-right me-2 t-gold"></i>Konversi Cent → IDR</div>
         <div class="field-group"><label>Format IDR:Cent</label><input type="text" id="convRatio" class="field" value="${settings.conversionRatio || '100000:555'}" placeholder="100000:555"/></div>
         <button class="gold-btn" style="margin-top:12px" onclick="Settings.saveConv()"><i class="bi bi-check-lg"></i> Simpan</button></div>
-      <div style="text-align:center;padding:20px 0 8px;font-size:11px;color:var(--text3)">Trading Suite v2.0 · Gold Edition<br/>⚠️ Trading emas mengandung risiko tinggi</div>
+      <div style="text-align:center;padding:20px 0 8px;font-size:11px;color:var(--text3)">Trading Suite v2.0 · Gold Edition<br/>© PimenFx<br/><span style="font-size:10px">⚠️ Trading emas mengandung risiko tinggi</span></div>
     </div>`;
   },
 
