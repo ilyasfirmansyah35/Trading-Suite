@@ -1,0 +1,442 @@
+<script>
+  // ===== DASHBOARD MODULE =====
+  const Dashboard = {
+
+    loadChartJS() {
+      return new Promise((resolve) => {
+        if (typeof Chart !== 'undefined') { resolve(); return; }
+        const s = document.createElement('script');
+        s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js';
+        s.onload = resolve;
+        s.onerror = resolve;
+        document.head.appendChild(s);
+      });
+    },
+
+    // Format "2026-11" → "Nov '26"
+    fmtMonth(str) {
+      const m = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+      const [y, mo] = (str || '').split('-');
+      return mo ? m[parseInt(mo) - 1] + " '" + (y || '').slice(2) : str;
+    },
+
+    // Format "2026-11-05" → "5 Nov"
+    fmtDay(str) {
+      if (!str) return '';
+      const d = new Date(str + 'T00:00');
+      const m = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+      return d.getDate() + ' ' + m[d.getMonth()];
+    },
+
+    async render() {
+      const el = document.getElementById('page-dashboard');
+      el.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;padding:40px;gap:12px;color:var(--text3)">
+      <div class="loader-gold"></div><span>Memuat dashboard…</span>
+    </div>`;
+
+      if (!App.state.currentAccountId) {
+        el.innerHTML = `<div class="empty-state fade-up">
+        <div class="empty-state-icon"><i class="bi bi-person-slash"></i></div>
+        <h3>Belum ada akun</h3>
+        <p>Buat akun terlebih dahulu di menu <strong>Pengaturan</strong>.</p>
+        <button class="gold-btn" style="width:auto;padding:12px 24px;margin:16px auto 0" onclick="App.go('settings')">
+          <i class="bi bi-sliders me-1"></i> Buka Pengaturan
+        </button></div>`;
+        return;
+      }
+
+      try {
+        const [stats] = await Promise.all([
+          API.getStats(App.state.currentAccountId, {}),
+          this.loadChartJS()
+        ]);
+        this.build(stats, el);
+      } catch (e) {
+        el.innerHTML = `<div class="empty-state fade-up">
+        <div class="empty-state-icon"><i class="bi bi-wifi-off"></i></div>
+        <h3>Gagal memuat data</h3><p><small style="color:var(--loss)">${e.message || e}</small></p>
+        <button class="ghost-btn" style="margin:16px auto 0;width:auto;padding:10px 20px" onclick="Dashboard.render()">
+          <i class="bi bi-arrow-clockwise me-1"></i> Coba Lagi
+        </button></div>`;
+      }
+    },
+
+    build(stats, el) {
+      const s = stats.summary, d = stats.daily, c = stats.charts;
+      const acc = App.state.currentAccount;
+      const cur = acc ? acc.Currency : 'IDR';
+      const fmt = v => App.fmt(v, cur);
+      const np = s.netProfit;
+
+      const dailySec = (d.dailyTarget > 0 || d.dailyLossLimit > 0) ? `
+      <div class="daily-card ${d.targetReached ? 'target-glow' : ''} ${d.lossLimitReached ? 'loss-glow' : ''}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3)">Progres Hari Ini</div>
+          <div style="font-family:var(--font-num);font-size:22px;font-weight:900" class="${d.todayProfit >= 0 ? 't-win' : 't-loss'}">${fmt(d.todayProfit)}</div>
+        </div>
+        ${d.dailyTarget > 0 ? `<div style="font-size:11px;color:var(--text3);margin-bottom:4px">Target: ${fmt(d.dailyTarget)} (${Math.round(d.targetProgress)}%)</div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill win" style="width:${Math.min(d.targetProgress, 100)}%"></div></div>` : ''}
+        ${d.dailyLossLimit > 0 ? `<div style="font-size:11px;color:var(--text3);margin-top:8px;margin-bottom:4px">Loss Limit: ${fmt(d.todayLossTotal)} / ${fmt(d.dailyLossLimit)}</div>
+          <div class="progress-bar-wrap"><div class="progress-bar-fill loss" style="width:${Math.min((d.todayLossTotal / d.dailyLossLimit) * 100, 100)}%"></div></div>` : ''}
+        <div style="display:flex;gap:14px;margin-top:10px;font-size:12px">
+          <span class="t-win"><i class="bi bi-check-circle-fill me-1"></i>${d.todayWins} Win</span>
+          <span class="t-loss"><i class="bi bi-x-circle-fill me-1"></i>${d.todayLosses} Loss</span>
+        </div>
+      </div>` : '';
+
+      const hasChart = typeof Chart !== 'undefined';
+
+      el.innerHTML = `<div class="fade-up">
+
+      <!-- Hero Balance -->
+      <div class="hero-card">
+        <div class="hero-label">Saldo Saat Ini · ${acc ? acc.Name : ''}</div>
+        <div class="hero-val ${np >= 0 ? 't-win' : 't-loss'}">${fmt(s.currentBalance)}</div>
+        <div class="hero-sub">${np >= 0 ? '▲' : '▼'} ${fmt(Math.abs(np))} net P/L dari ${fmt(s.initialBalance)}</div>
+        <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <span class="status-badge ${d.lossLimitReached ? 'loss-bg' : d.targetReached ? 'win-bg' : 'ok'}">
+            <i class="bi bi-circle-fill" style="font-size:7px"></i> ${d.tradingStatus}
+          </span>
+          <span class="status-badge ok"><i class="bi bi-calendar3"></i> ${d.totalTrade} trade hari ini</span>
+        </div>
+      </div>
+
+      ${dailySec}
+
+      <!-- Stats Grid -->
+      <div class="stat-grid">
+        <div class="stat-item"><div class="stat-item-label">Win Rate</div><div class="stat-item-val t-win">${s.winRate}%<i class="bi bi-graph-up-arrow icon"></i></div></div>
+        <div class="stat-item"><div class="stat-item-label">Total Trade</div><div class="stat-item-val">${s.totalTrade}<i class="bi bi-journal-bookmark icon"></i></div></div>
+        <div class="stat-item"><div class="stat-item-label">Total Profit</div><div class="stat-item-val t-win">${fmt(s.totalProfit)}</div></div>
+        <div class="stat-item"><div class="stat-item-label">Total Loss</div><div class="stat-item-val t-loss">${fmt(s.totalLoss)}</div></div>
+        <div class="stat-item"><div class="stat-item-label">Best Trade</div><div class="stat-item-val t-win">${fmt(s.bestTrade)}</div></div>
+        <div class="stat-item"><div class="stat-item-label">Worst Trade</div><div class="stat-item-val t-loss">${fmt(s.worstTrade)}</div></div>
+        ${cur !== 'Cent' ? `
+        <div class="stat-item"><div class="stat-item-label">Profit Factor</div><div class="stat-item-val t-gold">${s.profitFactor}x</div></div>
+        <div class="stat-item"><div class="stat-item-label">Max Drawdown</div><div class="stat-item-val t-be">${fmt(s.drawdown)}</div></div>` : ''}
+      </div>
+
+      <!-- IDR Total Card (Cent accounts only) -->
+      ${cur === 'Cent' ? (() => {
+          const ratio = (App.state.settings.conversionRatio || '100000:555').split(':').map(Number);
+          const rate = (ratio.length === 2 && ratio[1] > 0) ? ratio[0] / ratio[1] : 180;
+          const netIDR = Math.round(s.netProfit * rate);
+          const profIDR = Math.round(s.totalProfit * rate);
+          const lossIDR = Math.round(s.totalLoss * rate);
+          const sign = netIDR >= 0 ? '+' : '';
+          return `<div class="idr-card">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--gold-dark);margin-bottom:6px">
+            <i class="bi bi-currency-exchange me-1"></i> Total Pendapatan dalam Rupiah
+          </div>
+          <div style="font-family:var(--font-num);font-size:30px;font-weight:900;letter-spacing:-1px;margin-bottom:4px" class="${netIDR >= 0 ? 't-win' : 't-loss'}">
+            ${sign}Rp ${Math.abs(netIDR).toLocaleString('id-ID')}
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-bottom:14px">
+            Konversi: ${s.netProfit >= 0 ? '+' : ''}${s.netProfit} Cent × Rp ${Math.round(rate).toLocaleString('id-ID')}/Cent
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div style="background:rgba(16,185,129,.07);border:1px solid rgba(16,185,129,.15);border-radius:10px;padding:10px 12px">
+              <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px">Profit IDR</div>
+              <div style="font-family:var(--font-num);font-size:15px;font-weight:800;color:var(--win)">Rp ${profIDR.toLocaleString('id-ID')}</div>
+            </div>
+            <div style="background:rgba(244,63,94,.07);border:1px solid rgba(244,63,94,.15);border-radius:10px;padding:10px 12px">
+              <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:4px">Loss IDR</div>
+              <div style="font-family:var(--font-num);font-size:15px;font-weight:800;color:var(--loss)">Rp ${Math.abs(lossIDR).toLocaleString('id-ID')}</div>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--text3);margin-top:10px;text-align:right">
+            Rasio: ${(App.state.settings.conversionRatio || '100000:555')} · ubah di Pengaturan
+          </div>
+        </div>`;
+        })() : ''}
+
+      <!-- Daily Calendar -->
+      <div class="chart-card" id="calendarPanel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold)"></div>
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3)">Catatan Harian</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <button class="cal-nav-btn" onclick="Dashboard.calPrev()" title="Bulan sebelumnya"><i class="bi bi-chevron-left"></i></button>
+            <span id="calMonthLabel" style="font-size:13px;font-weight:700;color:var(--text);min-width:100px;text-align:center"></span>
+            <button class="cal-nav-btn" onclick="Dashboard.calNext()" title="Bulan berikutnya"><i class="bi bi-chevron-right"></i></button>
+          </div>
+        </div>
+        <div class="cal-weekdays">
+          <div>Min</div><div>Sen</div><div>Sel</div><div>Rab</div><div>Kam</div><div>Jum</div><div>Sab</div>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div id="calSummary" style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap"></div>
+      </div>
+
+      <!-- Charts -->
+      ${hasChart ? `
+      <!-- Equity Curve -->
+      <div class="chart-card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold)"></div>
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3)">Equity Curve</span>
+        </div>
+        <canvas id="eqChart" height="130"></canvas>
+      </div>
+
+      <!-- Monthly P/L -->
+      <div class="chart-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold)"></div>
+            <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3)">P/L per Bulan</span>
+          </div>
+          <span style="font-size:10px;color:var(--text3)">${c.monthly.labels.length} bulan</span>
+        </div>
+        <canvas id="mnChart" height="130"></canvas>
+      </div>
+
+      <!-- Win / Loss Donut -->
+      <div class="chart-card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--win);box-shadow:0 0 6px var(--win)"></div>
+          <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--text3)">Distribusi Hasil</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px">
+          <div style="flex:1"><canvas id="wlChart" width="150" height="150"></canvas></div>
+          <div style="display:flex;flex-direction:column;gap:10px;min-width:100px">
+            <div class="wl-legend-item" style="color:var(--win)">
+              <div class="wl-dot" style="background:var(--win)"></div>
+              <span class="wl-label">Win</span>
+              <span class="wl-cnt">${c.winLoss.win}</span>
+            </div>
+            <div class="wl-legend-item" style="color:var(--loss)">
+              <div class="wl-dot" style="background:var(--loss)"></div>
+              <span class="wl-label">Loss</span>
+              <span class="wl-cnt">${c.winLoss.loss}</span>
+            </div>
+            <div class="wl-legend-item" style="color:var(--be)">
+              <div class="wl-dot" style="background:var(--be)"></div>
+              <span class="wl-label">Break Even</span>
+              <span class="wl-cnt">${c.winLoss.be}</span>
+            </div>
+          </div>
+        </div>
+      </div>` : `
+      <div class="card" style="text-align:center;padding:20px;color:var(--text3)">
+        <i class="bi bi-bar-chart-line" style="font-size:28px;opacity:.3;display:block;margin-bottom:8px"></i>
+        <div style="font-size:12px">Chart tidak tersedia (jaringan lambat)</div>
+      </div>`}
+
+    </div>
+
+    <style>
+    .wl-legend-item{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
+    .wl-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+    .wl-label{flex:1;color:var(--text2);font-size:12px;font-weight:600}
+    .wl-cnt{font-family:var(--font-num);font-size:18px;font-weight:900}
+    </style>`;
+
+      // Store chart data for calendar
+      this._chartDaily = c.daily; // { labels:[], data:[] }
+      this._currency = cur;
+
+      // Init calendar to current month
+      const now = new Date();
+      this._calYear = now.getFullYear();
+      this._calMonth = now.getMonth(); // 0-indexed
+      this.renderCalendar();
+
+      if (hasChart) setTimeout(() => this.drawCharts(c), 150);
+    },
+
+    // ── Calendar Panel Methods ──
+    calPrev() {
+      this._calMonth--;
+      if (this._calMonth < 0) { this._calMonth = 11; this._calYear--; }
+      this.renderCalendar();
+    },
+    calNext() {
+      this._calMonth++;
+      if (this._calMonth > 11) { this._calMonth = 0; this._calYear++; }
+      this.renderCalendar();
+    },
+
+    renderCalendar() {
+      const year = this._calYear;
+      const month = this._calMonth;
+      const monthNames = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+      const label = document.getElementById('calMonthLabel');
+      if (label) label.textContent = monthNames[month] + ' ' + year;
+
+      // Build daily P/L map from chart data
+      const dailyMap = {};
+      if (this._chartDaily && this._chartDaily.labels) {
+        this._chartDaily.labels.forEach((d, i) => { dailyMap[d] = this._chartDaily.data[i]; });
+      }
+
+      const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const cur = this._currency;
+      const fmt = v => App.fmt(v, cur);
+
+      let html = '';
+      let totalProfit = 0, totalLoss = 0, winDays = 0, lossDays = 0;
+
+      // Empty cells before 1st
+      for (let i = 0; i < firstDay; i++) {
+        html += '<div class="cal-cell empty"></div>';
+      }
+
+      for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        const pl = dailyMap[dateStr];
+        const isToday = dateStr === todayStr;
+        let cellClass = 'cal-cell';
+        let valHtml = '';
+
+        if (pl !== undefined && pl !== 0) {
+          if (pl > 0) {
+            cellClass += ' cal-win';
+            totalProfit += pl;
+            winDays++;
+          } else {
+            cellClass += ' cal-loss';
+            totalLoss += Math.abs(pl);
+            lossDays++;
+          }
+          // Format compact value
+          const absVal = Math.abs(pl);
+          let display;
+          if (cur === 'Cent') {
+            display = (pl > 0 ? '+' : '-') + absVal.toFixed(absVal >= 1000 ? 0 : 2);
+          } else {
+            if (absVal >= 1000000) display = (pl > 0 ? '+' : '-') + (absVal / 1000000).toFixed(1) + 'jt';
+            else if (absVal >= 1000) display = (pl > 0 ? '+' : '-') + (absVal / 1000).toFixed(absVal >= 10000 ? 0 : 1) + 'k';
+            else display = (pl > 0 ? '+' : '-') + absVal;
+          }
+          valHtml = '<div class="cal-val">' + display + '</div>';
+        } else if (pl === 0) {
+          cellClass += ' cal-be';
+          valHtml = '<div class="cal-val" style="color:var(--be)">BE</div>';
+        }
+
+        if (isToday) cellClass += ' cal-today';
+
+        html += '<div class="' + cellClass + '">'
+              + '<div class="cal-day' + (isToday ? ' today-dot' : '') + '">' + day + '</div>'
+              + valHtml
+              + '</div>';
+      }
+
+      const grid = document.getElementById('calGrid');
+      if (grid) grid.innerHTML = html;
+
+      // Summary
+      const net = totalProfit - totalLoss;
+      const summaryEl = document.getElementById('calSummary');
+      if (summaryEl) {
+        summaryEl.innerHTML = `
+          <div class="cal-summary-chip win"><i class="bi bi-caret-up-fill"></i> ${winDays} hari profit</div>
+          <div class="cal-summary-chip loss"><i class="bi bi-caret-down-fill"></i> ${lossDays} hari loss</div>
+          <div class="cal-summary-chip ${net >= 0 ? 'win' : 'loss'}">Net: ${net >= 0 ? '+' : ''}${fmt(Math.round(net * 100) / 100)}</div>
+        `;
+      }
+    },
+
+    drawCharts(c) {
+      ['eqChart', 'mnChart', 'wlChart'].forEach(id => {
+        const i = Chart.getChart(id); if (i) i.destroy();
+      });
+
+      const gr = 'rgba(255,255,255,.04)';
+      const tk = '#475569';
+      const baseOpts = {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: { display: false }, tooltip: {
+            backgroundColor: 'rgba(14,20,34,.95)',
+            borderColor: 'rgba(245,200,66,.2)',
+            borderWidth: 1,
+            titleColor: '#94a3b8',
+            bodyColor: '#f1f5f9',
+            bodyFont: { family: "'Outfit',sans-serif", weight: '700', size: 14 },
+            padding: 12,
+            cornerRadius: 10
+          }
+        },
+        scales: {
+          x: { grid: { color: gr, drawBorder: false }, ticks: { color: tk, font: { size: 10 }, maxTicksLimit: 7 } },
+          y: { grid: { color: gr, drawBorder: false }, ticks: { color: tk, font: { size: 10 }, maxTicksLimit: 5 } }
+        }
+      };
+
+      // Equity Curve
+      const eqLast = c.equity.data.length > 0 ? c.equity.data[c.equity.data.length - 1] : 0;
+      const eqColor = eqLast >= 0 ? '#F5C842' : '#f43f5e';
+      const eqBg = eqLast >= 0 ? 'rgba(245,200,66,.06)' : 'rgba(244,63,94,.06)';
+      new Chart(document.getElementById('eqChart'), {
+        type: 'line',
+        data: {
+          labels: c.equity.labels.map(l => this.fmtDay(l)),
+          datasets: [{
+            data: c.equity.data, fill: true, tension: 0.45,
+            borderColor: eqColor, backgroundColor: eqBg,
+            borderWidth: 2.5, pointRadius: 0,
+            pointHoverRadius: 5, pointHoverBackgroundColor: eqColor
+          }]
+        },
+        options: baseOpts
+      });
+
+      // Monthly P/L bar
+      const mnLabels = c.monthly.labels.map(l => this.fmtMonth(l));
+      new Chart(document.getElementById('mnChart'), {
+        type: 'bar',
+        data: {
+          labels: mnLabels,
+          datasets: [{
+            data: c.monthly.data,
+            backgroundColor: c.monthly.data.map(v => v >= 0 ? 'rgba(245,200,66,.65)' : 'rgba(244,63,94,.65)'),
+            borderColor: c.monthly.data.map(v => v >= 0 ? '#F5C842' : '#f43f5e'),
+            borderWidth: 1.5, borderRadius: 7, borderSkipped: false
+          }]
+        },
+        options: {
+          ...baseOpts, scales: {
+            ...baseOpts.scales,
+            x: { ...baseOpts.scales.x, ticks: { color: tk, font: { size: 11 } } }
+          }
+        }
+      });
+
+      // Win/Loss doughnut
+      const total = c.winLoss.win + c.winLoss.loss + c.winLoss.be;
+      new Chart(document.getElementById('wlChart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Win', 'Loss', 'BE'],
+          datasets: [{
+            data: total > 0 ? [c.winLoss.win, c.winLoss.loss, c.winLoss.be] : [1, 0, 0],
+            backgroundColor: ['rgba(16,185,129,.8)', 'rgba(244,63,94,.8)', 'rgba(245,158,11,.8)'],
+            borderColor: ['#10b981', '#f43f5e', '#f59e0b'],
+            borderWidth: 2, hoverOffset: 8, spacing: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          cutout: '68%',
+          plugins: {
+            legend: { display: false }, tooltip: {
+              backgroundColor: 'rgba(14,20,34,.95)',
+              borderColor: 'rgba(245,200,66,.2)', borderWidth: 1,
+              titleColor: '#94a3b8', bodyColor: '#f1f5f9',
+              bodyFont: { family: "'Outfit',sans-serif", weight: '700', size: 14 },
+              padding: 12, cornerRadius: 10
+            }
+          }
+        }
+      });
+    }
+  };
+</script>
