@@ -742,7 +742,7 @@ const Calculator = {
           <div class="risk-meter-wrap"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)"><span>Risk Meter</span><span id="calRiskPct">0%</span></div>
             <div class="risk-meter-track"><div class="risk-meter-fill" id="calMeterFill" style="width:0%"></div></div></div>
         </div>
-        <div class="card"><div class="card-title">R:R Simulasi</div><div class="rr-grid" id="calRRGrid"></div></div>
+        <div class="card" style="margin-bottom:24px"><div class="card-title">R:R Simulasi</div><div class="rr-grid" id="calRRGrid"></div></div>
       </div>
     </div>`;
   },

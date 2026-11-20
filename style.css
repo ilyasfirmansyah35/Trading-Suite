@@ -57,7 +57,7 @@ body::before{content:'';position:fixed;top:-200px;left:50%;transform:translateX(
 
 /* PAGE */
 .page-area{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
-  padding:16px 16px calc(var(--nav-h)+16px);overscroll-behavior:contain}
+  padding:16px 16px calc(var(--nav-h)+40px);overscroll-behavior:contain}
 
 /* BOTTOM NAV */
 .bottom-nav{height:var(--nav-h);background:rgba(9,13,22,.98);backdrop-filter:blur(20px);
