@@ -742,7 +742,7 @@ const Calculator = {
           <div class="risk-meter-wrap"><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3)"><span>Risk Meter</span><span id="calRiskPct">0%</span></div>
             <div class="risk-meter-track"><div class="risk-meter-fill" id="calMeterFill" style="width:0%"></div></div></div>
         </div>
-        <div class="card" style="margin-bottom:24px"><div class="card-title">R:R Simulasi</div><div class="rr-grid" id="calRRGrid"></div></div>
+        <div class="card" style="margin-bottom:24px"><div class="card-title">R:R Simulasi</div><div style="display:flex;flex-direction:column;gap:8px" id="calRRGrid"></div></div>
       </div>
     </div>`;
   },
@@ -768,7 +768,13 @@ const Calculator = {
     document.getElementById('calRateVal').textContent = Math.round(this._rate).toLocaleString('id-ID');
     document.getElementById('calRiskPct').textContent = rPct.toFixed(1) + '%';
     document.getElementById('calMeterFill').style.width = Math.min(rPct / 5 * 100, 100) + '%';
-    document.getElementById('calRRGrid').innerHTML = [1, 1.5, 2, 2.5, 3, 4].map(rr => `<div class="rr-item"><div class="rr-ratio">1:${rr}</div><div class="rr-val">${this._cur === 'IDR' ? 'Rp ' + Math.round(lot * 10 * sl * rr).toLocaleString('id-ID') : '$' + (lot * 10 * sl * rr).toFixed(2)}</div></div>`).join('');
+    document.getElementById('calRRGrid').innerHTML = [2, 3, 4].map(rr => {
+      const val = this._cur === 'IDR' ? 'Rp ' + Math.round(lot * 10 * sl * rr).toLocaleString('id-ID') : '$' + (lot * 10 * sl * rr).toFixed(2);
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--card);border:1px solid var(--border);border-radius:12px">
+        <span style="font-size:12px;font-weight:700;color:var(--text2)">1:${rr}</span>
+        <span style="font-family:var(--font-num);font-size:16px;font-weight:800;color:var(--win)">${val}</span>
+      </div>`;
+    }).join('');
   }
 };
 
